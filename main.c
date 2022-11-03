@@ -177,20 +177,17 @@ int main(int argc, char **argv)
         count = (unsigned int)memchr(copybuf, ';', 0x800);
         l = (unsigned int)copybuf;
         copybuf[count - l] = 0;
-        // count=(unsigned int)memchr(copybuf,'\\',0x800);
-        
-        /*printf("%d is the value of count\n", count);
+
+#ifdef _DEBUG
         printf("copybuf MEMDUMP ---{\n");
 		int x;
         for(x=0; x<0x800;x++)
         {
-            if (copybuf[x] == NULL)
-                break;
             printf("%c", copybuf[x]);
         }
-        printf("}\n");*/
+        printf("\n}\n");
+#endif
 
-        // snprintf(name, sizeof(name), fname, copybuf+count+1);
         memcpy(name, memchr(copybuf, '\\', 0x800) + 1, sizeof(name));
         printf("main ELF filename is [%s]\n", name);
         if (blksz == 2048) {
