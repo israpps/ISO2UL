@@ -1,14 +1,15 @@
 //#include "stdafx.h"
 #include <stdlib.h>
 #include <string.h>
-#include <io.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdint.h>
-//#include <iostream>
-//#include <cctype>
+
+#elif defined(_WIN32) || defined(WIN32)
+#include <io.h> //TODO: check if it's necesary for the code to work
+#endif
 
 
 #define UL_GAME_NAME_MAX       32
@@ -266,7 +267,7 @@ int main(int argc, char **argv)
 				}
 			} while ((fileres > 0));
 			rclose();
-
+			//TODO: traverse existing UL.CFG and make sure that an entry with same name and ELF is not there already
 			sprintf(conffile,confname, argv[2]);
 			infile=conffile;
 			memset(copybuf,0,0x100);
