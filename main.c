@@ -22,6 +22,7 @@
 #define PATHSEP "/"
 #endif
 
+#define UL_CFG_MAGIC           "UL."
 #define UL_GAME_NAME_MAX       32
 #define ISO_GAME_NAME_MAX      64
 #define ISO_GAME_EXTENSION_MAX 4
@@ -278,7 +279,7 @@ int main(int argc, char **argv)
             ropena();
             printf("Updating %s\n", conffile);
             strcpy((char *)copybuf, argv[3]);
-            strncpy((char *)copybuf + 0x20, outfile + 3, 3);
+            strncpy((char *)copybuf + 0x20, UL_CFG_MAGIC, 3);
             strcpy((char *)copybuf + 0x23, name);
             copybuf[0x2F] = part;
             copybuf[0x30] = 0x12;
