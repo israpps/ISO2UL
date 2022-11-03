@@ -22,7 +22,7 @@
 #define PATHSEP "/"
 #endif
 
-#define UL_CFG_MAGIC           "UL."
+#define UL_CFG_MAGIC           "ul."
 #define UL_GAME_NAME_MAX       32
 #define ISO_GAME_NAME_MAX      64
 #define ISO_GAME_EXTENSION_MAX 4
