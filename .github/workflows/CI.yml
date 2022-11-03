@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'master'
+      - 'v*'
+    tags:
+      - v*
+  pull_request:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [run_build]
+
+
+jobs:
+  build:
+    strategy:
+     matrix:
+       toolchain: ["windows-static-x86", "linux-x86", "windows-static-x64", "linux-x64"]
+    runs-on: ubuntu-latest
+    container: dockcross/${{ matrix.toolchain }}:latest
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: fix ownership, add dependencies and fetch
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        sudo apt-get install --assume-yes p7zip-full 
+        git fetch --prune
+        
+    - name: Create changelog
+      if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+      run: |
+        echo Latest changes:>>CHANGELOG.MD
+        if [ $(git tag -l "Latest") ]; then COMPARISON="Latest..HEAD"; else COMPARISON=""; fi
+        git --no-pager log $COMPARISON --pretty=format:"- %h  %<(18)%an: %s">>CHANGELOG.MD
+        cat CHANGELOG.MD
+          
+    - name: Compile project
+      run: |
+        DATEE=`date '+[%Y-%m-%d]'`
+        mv LICENSE LICENSE.TXT
+        echo "package compiled and released on $DATEE" >>README.MD
+        echo "Commit  ${{ github.sha }}" >>README.MD
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        make clean all
+        7z a -t7z ${{ github.event.repository.name }}-${{ matrix.toolchain }}.7z ../LICENSE.TXT ../README.MD "${{ github.event.repository.name }}*"
+        
+    - name: Upload artifacts
+      if: ${{ success() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ github.event.repository.name }}-${{ matrix.toolchain }}
+        path: |
+             build/${{ github.event.repository.name }}-${{ matrix.toolchain }}.7z
+    - name: Deploy pre-release
+      uses: softprops/action-gh-release@v1
+      if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+      with:
+        body_path: CHANGELOG.MD
+        token: "${{ secrets.GITHUB_TOKEN }}"
+        fail_on_unmatched_files: true
+        files: |
+            build/${{ github.event.repository.name }}-${{ matrix.toolchain }}.7z
+        name: "Latest build"
+        tag_name: "Latest"
+        prerelease: true
+        
