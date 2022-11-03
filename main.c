@@ -6,11 +6,19 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #if defined(_WIN32) || defined(WIN32)
 #include <io.h> //TODO: check if it's necesary for the code to work
+#define LSEEK64 _lseeki64
 #endif
 
+#ifdef __linux__
+#include <sys/types.h>
+#include <unistd.h>
+#define LSEEK64 lseek64
+#endif
 
 #define UL_GAME_NAME_MAX       32
 #define ISO_GAME_NAME_MAX      64
@@ -40,7 +48,11 @@ unsigned int crctab[0x400];
 
 void ropen()
 {
-    fhin = _open(infile, _O_RDONLY | _O_BINARY);
+    fhin = open(infile, O_RDONLY 
+#ifndef __linux__
+	| O_BINARY
+#endif
+	);
     if (!fhin) {
         printf("\nERROR: Couldn't open file %s!\n", infile);
         exit(-1);
@@ -49,7 +61,11 @@ void ropen()
 
 void ropena()
 {
-    fhin = _open(infile, _O_RDWR | _O_CREAT | _S_IWRITE | _O_APPEND | _O_BINARY);
+    fhin = open(infile, O_RDWR | O_CREAT | S_IWRITE | O_APPEND 
+#ifndef __linux__
+	| O_BINARY
+#endif
+	);
     if (!fhin) {
         printf("\nERROR: Couldn't open file %s!\n", infile);
         exit(-1);
@@ -58,12 +74,16 @@ void ropena()
 
 void rclose()
 {
-    _close(fhin);
+    close(fhin);
 }
 
 void wopen()
 {
-    fhout = _open(outfile, _O_CREAT | _S_IWRITE | _O_WRONLY | _O_BINARY);
+    fhout = open(outfile, O_CREAT | S_IWRITE | O_WRONLY
+#ifndef __linux__
+	| O_BINARY
+#endif
+	);
     if (!fhout) {
         printf("\nERROR: Couldn't open file %s!\n", outfile);
         exit(-1);
@@ -72,7 +92,7 @@ void wopen()
 
 void wclose()
 {
-    _close(fhout);
+    close(fhout);
 }
 
 unsigned int crc32(char *string)
@@ -102,7 +122,7 @@ unsigned int crc32(char *string)
 int main(int argc, char **argv)
 {
     unsigned int crc, count, slice, part, fileres, l, i, blksz, pad;
-    __int64 offs1, offs2, offs3;
+    int64_t offs1, offs2, offs3;
 
     if (argc < 5 || argc > 5) {
         printf("\n"
@@ -131,7 +151,7 @@ int main(int argc, char **argv)
     crc = crc32(argv[3]);
 
     ropen();
-    if (_read(fhin, copybuf, 0x100000) != 0) {
+    if (read(fhin, copybuf, 0x100000) != 0) {
         if (strncmp(isohdr, (const char *)copybuf + 0x9319, 5) == 0) {
             blksz = 2352;
             pad = 0x18;
@@ -147,8 +167,8 @@ int main(int argc, char **argv)
         offs3 = copybuf[count + 2];
         offs1 = (offs1 + (offs2 << 8) + (offs3 << 16)) * blksz + pad;
         printf("\n");
-        _lseeki64(fhin, offs1, 0);
-        _read(fhin, copybuf, 0x800);
+        LSEEK64(fhin, offs1, 0);
+        read(fhin, copybuf, 0x800);
         rclose();
 
         count = (unsigned int)memchr(copybuf, ';', 0x800);
@@ -174,18 +194,18 @@ int main(int argc, char **argv)
             ropen();
             do {
                 slice = 0;
-                fileres = _read(fhin, copybuf, 0x800000);
+                fileres = read(fhin, copybuf, 0x800000);
                 if (fileres > 0) {
                     sprintf(outfile, outname, argv[2], crc, name, part);
                     printf("Writing: %s\n", outfile);
                     wopen();
-                    _write(fhout, copybuf, fileres);
+                    write(fhout, copybuf, fileres);
                     slice++;
                     if (fileres == 0x800000) {
                         do {
-                            fileres = _read(fhin, copybuf, 0x800000);
+                            fileres = read(fhin, copybuf, 0x800000);
                             if (fileres > 0) {
-                                _write(fhout, copybuf, fileres);
+                                write(fhout, copybuf, fileres);
                                 slice++;
                             }
                         } while ((slice < 128) && (fileres > 0));
@@ -209,14 +229,14 @@ int main(int argc, char **argv)
             if (temp[0] == 0x64)
                 copybuf[0x30] = 0x14;
             copybuf[0x35] = 0x08;
-            _write(fhin, copybuf, 0x40);
+            write(fhin, copybuf, 0x40);
             rclose();
 
         } else {
             ropen();
             do {
                 slice = 0;
-                fileres = _read(fhin, copybuf, 0x7FFAA0);
+                fileres = read(fhin, copybuf, 0x7FFAA0);
                 if (fileres > 0) {
                     sprintf(outfile, outname, argv[2], crc, name, part);
                     printf("Writing: %s\n", outfile);
@@ -228,18 +248,18 @@ int main(int argc, char **argv)
                     }
 
                     wopen();
-                    _write(fhout, copybuf, fileres / 2352 * 2048);
+                    write(fhout, copybuf, fileres / 2352 * 2048);
                     slice++;
                     if (fileres == 0x7FFAA0) {
                         do {
-                            fileres = _read(fhin, copybuf, 0x7FFAA0);
+                            fileres = read(fhin, copybuf, 0x7FFAA0);
                             if (fileres > 0) {
                                 for (l = 0; l < 3566; l++) {
                                     for (i = 0; i < 2048; i++) {
                                         copybuf[l * 2048 + i] = copybuf[l * 2352 + i + pad];
                                     }
                                 }
-                                _write(fhout, copybuf, fileres / 2352 * 2048);
+                                write(fhout, copybuf, fileres / 2352 * 2048);
                                 slice++;
                             }
                         } while ((slice < 128) && (fileres > 0));
@@ -263,7 +283,7 @@ int main(int argc, char **argv)
             if (temp[0] == 0x64)
                 copybuf[0x30] = 0x14;
             copybuf[0x35] = 0x08;
-            _write(fhin, copybuf, 0x40);
+            write(fhin, copybuf, 0x40);
             rclose();
         }
     } else {
