@@ -275,17 +275,17 @@ int main(int argc, char **argv)
             memset(copybuf, 0, 0x100);
             ropena();
             printf("Updating %s\n", conffile);
-            strcpy((char *)copybuf, argv[3]);
-            strncpy((char *)copybuf + 0x20, UL_CFG_MAGIC, 3);
-            strcpy((char *)copybuf + 0x23, name);
-            copybuf[0x2F] = part;
+            strcpy((char *)copybuf, argv[3]); // USBExtreme_game_entry_t.name
+            strncpy((char *)copybuf + 0x20, UL_CFG_MAGIC, 3); // USBExtreme_game_entry_t.magic
+            strcpy((char *)copybuf + 0x23, name); // USBExtreme_game_entry_t.startup
+            copybuf[0x2F] = part; // USBExtreme_game_entry_t.parts
             
             if (temp[0] == 0x64)
-                copybuf[0x30] = 0x14;
+                copybuf[0x30] = 0x14; // USBExtreme_game_entry_t.media
             else
-                copybuf[0x30] = 0x12;
+                copybuf[0x30] = 0x12; // USBExtreme_game_entry_t.media
             
-            copybuf[0x35] = 0x08;
+            copybuf[0x35] = 0x08; // USBExtreme_game_entry_t.Byte08
             write(fhin, copybuf, 0x40);
             rclose();
         }
