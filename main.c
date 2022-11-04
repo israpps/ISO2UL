@@ -279,9 +279,12 @@ int main(int argc, char **argv)
             strncpy((char *)copybuf + 0x20, UL_CFG_MAGIC, 3);
             strcpy((char *)copybuf + 0x23, name);
             copybuf[0x2F] = part;
-            copybuf[0x30] = 0x12;
+            
             if (temp[0] == 0x64)
                 copybuf[0x30] = 0x14;
+            else
+                copybuf[0x30] = 0x12;
+            
             copybuf[0x35] = 0x08;
             write(fhin, copybuf, 0x40);
             rclose();
