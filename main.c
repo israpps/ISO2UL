@@ -127,31 +127,19 @@ int main(int argc, char **argv)
     unsigned int crc, count, slice, part, fileres, l, i, blksz, pad;
     int64_t offs1, offs2, offs3;
 
-    if (argc < 5 || argc > 5) {
+    if (argc < 2) {
         printf("\n"
-               "USAGE: %s IMAGEFILE ROOTPATH \"TITLE\" [CD/DVD]\n"
+               "USAGE: %s IMAGEFILE\n"
                "\n"
-               "Example: %s \"I:\\games\\foo.ISO\" \"D:\\my\\desktop\" \"My very 1st demo\" CD\n",
-               argv[0], argv[0]);
+               argv[0]);
         exit(1);
     }
 
-    if (strlen((const char *)argv[3]) > 0x1F) {
-        printf("\nERROR: Title \"%s\" is too long!\n", argv[3]);
-        exit(-1);
-    }
-
-    strncpy(temp, argv[4], 3);
-    temp[0] = tolower(temp[0]);
-    temp[1] = tolower(temp[1]);
-    temp[2] = tolower(temp[2]);
-    temp[3] = 0;
 
     blksz = 2048;
     pad = 0;
     part = 0;
     infile = argv[1];
-    crc = crc32(argv[3]);
 
     ropen();
     if (read(fhin, copybuf, 0x100000) != 0) {
@@ -190,106 +178,4 @@ int main(int argc, char **argv)
 
         memcpy(name, memchr(copybuf, '\\', 0x800) + 1, sizeof(name));
         printf("main ELF filename is [%s]\n", name);
-        if (blksz == 2048) {
-            ropen();
-            do {
-                slice = 0;
-                fileres = read(fhin, copybuf, 0x800000);
-                if (fileres > 0) {
-                    sprintf(outfile, outname, argv[2], crc, name, part);
-                    printf("Writing: %s\n", outfile);
-                    wopen();
-                    write(fhout, copybuf, fileres);
-                    slice++;
-                    if (fileres == 0x800000) {
-                        do {
-                            fileres = read(fhin, copybuf, 0x800000);
-                            if (fileres > 0) {
-                                write(fhout, copybuf, fileres);
-                                slice++;
-                            }
-                        } while ((slice < 128) && (fileres > 0));
-                    }
-                    wclose();
-                    part++;
-                }
-            } while ((fileres > 0));
-            rclose();
-
-            sprintf(conffile, confname, argv[2]);
-            infile = conffile;
-            memset(copybuf, 0, 0x100);
-            ropena();
-            printf("Updating %s\n", conffile);
-            strcpy((char *)copybuf, argv[3]);
-            strncpy((char *)copybuf + 0x20, outfile + 3, 3);
-            strcpy((char *)copybuf + 0x23, name);
-            copybuf[0x2F] = part;
-            copybuf[0x30] = 0x12;
-            if (temp[0] == 0x64)
-                copybuf[0x30] = 0x14;
-            copybuf[0x35] = 0x08;
-            write(fhin, copybuf, 0x40);
-            rclose();
-
-        } else {
-            ropen();
-            do {
-                slice = 0;
-                fileres = read(fhin, copybuf, 0x7FFAA0);
-                if (fileres > 0) {
-                    sprintf(outfile, outname, argv[2], crc, name, part);
-                    printf("Writing: %s\n", outfile);
-
-                    for (l = 0; l < 3566; l++) {
-                        for (i = 0; i < 2048; i++) {
-                            copybuf[l * 2048 + i] = copybuf[l * 2352 + i + pad];
-                        }
-                    }
-
-                    wopen();
-                    write(fhout, copybuf, fileres / 2352 * 2048);
-                    slice++;
-                    if (fileres == 0x7FFAA0) {
-                        do {
-                            fileres = read(fhin, copybuf, 0x7FFAA0);
-                            if (fileres > 0) {
-                                for (l = 0; l < 3566; l++) {
-                                    for (i = 0; i < 2048; i++) {
-                                        copybuf[l * 2048 + i] = copybuf[l * 2352 + i + pad];
-                                    }
-                                }
-                                write(fhout, copybuf, fileres / 2352 * 2048);
-                                slice++;
-                            }
-                        } while ((slice < 128) && (fileres > 0));
-                    }
-                    wclose();
-                    part++;
-                }
-            } while ((fileres > 0));
-            rclose();
-            // TODO: traverse existing UL.CFG and make sure that an entry with same name and ELF is not there already
-            sprintf(conffile, confname, argv[2]);
-            infile = conffile;
-            memset(copybuf, 0, 0x100);
-            ropena();
-            printf("Updating %s\n", conffile);
-            strcpy((char *)copybuf, argv[3]); // USBExtreme_game_entry_t.name
-            strncpy((char *)copybuf + 0x20, UL_CFG_MAGIC, 3); // USBExtreme_game_entry_t.magic
-            strcpy((char *)copybuf + 0x23, name); // USBExtreme_game_entry_t.startup
-            copybuf[0x2F] = part; // USBExtreme_game_entry_t.parts
-            
-            if (temp[0] == 0x64)
-                copybuf[0x30] = 0x14; // USBExtreme_game_entry_t.media
-            else
-                copybuf[0x30] = 0x12; // USBExtreme_game_entry_t.media
-            
-            copybuf[0x35] = 0x08; // USBExtreme_game_entry_t.Byte08
-            write(fhin, copybuf, 0x40);
-            rclose();
-        }
-    } else {
-        rclose();
-    }
 }
